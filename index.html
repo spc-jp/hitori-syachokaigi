@@ -750,8 +750,8 @@ function buildMeetingMsg(roundNum, force) {
 }
 
 async function startMeeting() {
-  // パスワードチェック（4月1日以降）
-  if (needsPassword() && sessionStorage.getItem('kaigi-auth') !== '1') {
+  // パスワード未認証なら購入・パスワード画面を表示
+  if (sessionStorage.getItem('kaigi-auth') !== '1') {
     showMeetingPwScreen();
     return;
   }
