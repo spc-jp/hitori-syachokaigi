@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ひとり社長の経営会議室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ── リセット & ベース ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #E5C97A;
+    --gold2: #E5C97A;
+    --bg: #0F172A;
+    --bg2: #1E3A8A;
+    --text: #ddd;
+    --muted: #666;
+    --card-bg: rgba(255,255,255,0.04);
+    --card-border: rgba(255,255,255,0.07);
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(160deg, #0F172A 0%, #1E3A8A 60%, #0F172A 100%);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(229,201,122,0.2); border-radius: 3px; }
+
+  /* ── アニメーション ── */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .fade { animation: fadeUp .45s ease forwards; }
+  .pulse { animation: pulse 1.8s infinite; }
+
+  /* ── ヘッダー ── */
+  #header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,23,42,0.92);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(229,201,122,0.12);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  #header .title { font-family: 'Noto Serif JP'; font-size: 15px; color: var(--gold); letter-spacing: .06em; }
+  #header .sub   { font-size: 10px; color: #444; margin-top: 1px; }
+  #step-dots { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #2a2a3a; transition: background .3s; }
+  .dot.active { background: var(--gold); }
+  .dot.done   { background: rgba(229,201,122,0.4); }
+  #btn-reset {
+    margin-left: 10px; padding: 6px 12px; font-size: 11px;
+    background: transparent; border: 1px solid #333; color: #666;
+    border-radius: 8px; cursor: pointer; font-family: 'Noto Sans JP';
+    display: none; transition: all .2s;
+  }
+  #btn-reset:hover { border-color: #555; color: #aaa; }
+
+  /* ── メインラッパー ── */
+  #app { max-width: 780px; margin: 0 auto; padding: 24px 16px 100px; }
+
+  /* ── ボタン共通 ── */
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    border: none; color: #0F172A; font-weight: 700;
+    border-radius: 10px; cursor: pointer;
+    font-family: 'Noto Sans JP'; transition: all .18s;
+  }
+  .btn-gold:hover { transform: translateY(-2px); filter: brightness(1.08); }
+  .btn-gold:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-ghost {
+    background: transparent; border: 1px solid #333; color: #777;
+    border-radius: 10px; cursor: pointer;
+    font-family: 'Noto Sans JP'; transition: all .18s;
+  }
+  .btn-ghost:hover { border-color: #555; color: #aaa; transform: translateY(-1px); }
+
+  /* ── カード ── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 22px;
+  }
+
+  /* ── フォーム要素（テキストエリア・セレクト） ── */
+  textarea, select.theme-select {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid #2a2a3a; border-radius: 10px;
+    padding: 14px; color: var(--text);
+    font-size: 14px; font-family: 'Noto Sans JP';
+  }
+  textarea { resize: none; line-height: 1.8; margin-top: 10px; }
+  textarea:focus, select.theme-select:focus { outline: none; border-color: rgba(229,201,122,0.4); }
+  select.theme-select { padding: 10px 14px; cursor: pointer; }
+  select.theme-select option { background: var(--bg); color: var(--text); }
+
+  /* ── パスワード画面 ── */
+  #pw-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #pw-card {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(229,201,122,0.2);
+    border-radius: 20px; padding: 44px 40px; width: 340px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4); text-align: center;
+    backdrop-filter: blur(12px);
+  }
+  #pw-icon { font-size: 44px; margin-bottom: 16px; }
+  #pw-title { font-family: 'Noto Serif JP'; font-size: 17px; font-weight: 700; color: #E5C97A; margin-bottom: 6px; }
+  #pw-sub   { font-size: 12px; color: #888; margin-bottom: 24px; }
+  #pw-input {
+    width: 100%; padding: 13px 16px; font-size: 14px;
+    border: 1.5px solid rgba(229,201,122,0.3); border-radius: 10px;
+    font-family: 'Noto Sans JP'; color: #ddd;
+    background: rgba(255,255,255,0.05);
+    margin-bottom: 10px; transition: border-color .2s;
+  }
+  #pw-input:focus { outline: none; border-color: #E5C97A; }
+  #pw-input::placeholder { color: #555; }
+  #pw-error { font-size: 12px; color: #ff6b6b; min-height: 18px; margin-bottom: 8px; }
+  #pw-btn {
+    width: 100%; padding: 14px; font-size: 15px; font-weight: 700;
+    background: linear-gradient(135deg, #E5C97A, #C9A84C);
+    border: none; border-radius: 10px; color: #0F172A;
+    cursor: pointer; font-family: 'Noto Sans JP'; transition: all .2s;
+    margin-bottom: 16px;
+  }
+  #pw-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  #pw-note { font-size: 11px; color: #555; line-height: 1.8; }
+
+  /* ── ヘッダータイトルクリック ── */
+  #header-title-area { cursor: pointer; transition: opacity .2s; }
+  #header-title-area:hover { opacity: 0.75; }
+
+  /* ── フェーズ ── */
+  .phase { display: none; }
+  .phase.show { display: block; }
+
+  /* ── PHASE: input ── */
+  #phase-input .intro-title {
+    font-family: 'Noto Serif JP'; font-size: 22px; font-weight: 900;
+    color: var(--gold); text-align: center; margin-bottom: 8px;
+  }
+  #phase-input .intro-sub { font-size: 12px; color: #555; text-align: center; margin-bottom: 24px; }
+  #pool-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px; justify-content: center; }
+  .pool-badge {
+    border-radius: 20px; padding: 5px 12px; font-size: 11px; transition: all .2s;
+  }
+
+  /* ── PHASE: suggest ── */
+  #suggest-title { font-family: 'Noto Serif JP'; font-size: 17px; color: var(--gold); text-align: center; margin-bottom: 6px; }
+  #suggest-reason { font-size: 12px; color: #555; text-align: center; margin-bottom: 18px; }
+  #member-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+  .member-card {
+    border-radius: 12px; padding: 14px 8px; text-align: center;
+    cursor: pointer; transition: all .2s; position: relative;
+  }
+  .member-card:hover { transform: translateY(-2px); }
+  .member-card .m-emoji { font-size: 26px; margin-bottom: 7px; }
+  .member-card .m-name  { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+  .member-card .m-role  { font-size: 9px; color: #555; line-height: 1.4; }
+  .member-card .m-desc  { font-size: 9px; color: #555; background: rgba(255,255,255,0.03); border-radius: 4px; padding: 3px 4px; margin-top: 7px; line-height: 1.4; }
+  .member-card .m-swap  { font-size: 9px; border: 1px solid rgba(229,201,122,0.2); border-radius: 4px; padding: 3px; margin-top: 7px; color: rgba(229,201,122,0.5); }
+  .member-card.selected { border-width: 2px !important; }
+  .member-card .sel-badge { position: absolute; top: 5px; right: 6px; font-size: 9px; }
+
+  #swap-panel { display: none; border-radius: 14px; padding: 18px; margin-bottom: 14px; border: 1px solid rgba(229,201,122,0.3); background: rgba(229,201,122,0.05); }
+  #swap-panel-title { font-size: 12px; color: var(--gold); margin-bottom: 12px; }
+  #swap-pool { display: flex; flex-wrap: wrap; gap: 7px; }
+  .swap-option {
+    border-radius: 10px; padding: 8px 12px; display: flex; align-items: center; gap: 7px;
+    cursor: pointer; transition: all .2s;
+  }
+  .swap-option:hover { transform: translateY(-2px); }
+  .swap-option .so-emoji { font-size: 16px; }
+  .swap-option .so-name  { font-size: 11px; font-weight: 700; }
+  .swap-option .so-role  { font-size: 9px; color: #555; }
+  #suggest-btns { display: flex; gap: 10px; margin-top: 16px; }
+
+  /* ── PHASE: meeting ── */
+  #topic-bar { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+  #topic-bar .topic-label { font-size: 10px; color: #555; }
+  #topic-bar .topic-text  { font-family: 'Noto Serif JP'; font-size: 14px; color: var(--gold); flex: 1; }
+  #topic-bar .member-emojis { display: flex; gap: 4px; font-size: 18px; }
+  #rounds-container {}
+  .round-block { margin-bottom: 24px; }
+  .round-badge-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .round-badge {
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    color: #0F172A; font-size: 10px; font-weight: 700;
+    padding: 3px 12px; border-radius: 20px; letter-spacing: .08em;
+  }
+  .round-divider { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(229,201,122,0.3), transparent); }
+  .speech-mod-intro {
+    background: rgba(229,201,122,0.07); border: 1px solid rgba(229,201,122,0.25);
+    border-radius: 12px; padding: 14px; margin-bottom: 8px; display: flex; gap: 10px;
+  }
+  .speech-expert {
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px; padding: 14px; margin-bottom: 7px; display: flex; gap: 10px;
+  }
+  .speech-close {
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(229,201,122,0.1);
+    border-radius: 10px; padding: 12px; display: flex; gap: 10px;
+  }
+  .sp-emoji { font-size: 20px; flex-shrink: 0; }
+  .sp-name  { font-size: 10px; font-weight: 700; margin-bottom: 4px; }
+  .sp-text  { font-size: 13px; line-height: 1.9; color: #bbb; }
+  .sp-text-italic { font-size: 12px; line-height: 1.9; color: #888; font-style: italic; }
+  .close-label { font-size: 10px; color: rgba(229,201,122,0.5); font-weight: 700; margin-bottom: 4px; }
+
+  #conclusion-box {
+    background: linear-gradient(135deg, rgba(229,201,122,0.12), rgba(229,201,122,0.04));
+    border: 2px solid rgba(229,201,122,0.4);
+    border-radius: 16px; padding: 22px; margin-bottom: 20px; display: none;
+  }
+  #conclusion-box .c-title { font-family: 'Noto Serif JP'; font-size: 15px; color: var(--gold); margin-bottom: 10px; }
+  #conclusion-box .c-text  { font-size: 14px; line-height: 2; color: #ddd; }
+
+  #loading-box { text-align: center; padding: 40px; display: none; }
+  #loading-box .l-emoji { font-size: 32px; margin-bottom: 10px; }
+  #loading-box .l-text  { font-size: 13px; color: rgba(229,201,122,0.6); }
+
+  #meeting-btns { display: flex; gap: 10px; }
+
+  /* ── PHASE: minutes ── */
+  #minutes-box { background: var(--card-bg); border: 1px solid rgba(229,201,122,0.25); border-radius: 16px; padding: 28px; margin-bottom: 16px; }
+  #minutes-box .min-title { font-family: 'Noto Serif JP'; font-size: 17px; color: var(--gold); margin-bottom: 18px; }
+  #minutes-text { white-space: pre-wrap; font-size: 13px; line-height: 2.1; color: #ccc; font-family: 'Noto Sans JP'; }
+  #minutes-btns { display: flex; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- ── パスワード画面 ── -->
+<div id="pw-screen">
+  <div id="pw-card">
+    <div id="pw-icon">🏛️</div>
+    <div id="pw-title">ひとり社長の経営会議室</div>
+    <div id="pw-sub">ご利用にはパスワードが必要です</div>
+    <input id="pw-input" type="password" placeholder="パスワードを入力"
+      onkeydown="if(event.key==='Enter') checkPassword()">
+    <div id="pw-error"></div>
+    <button id="pw-btn" onclick="checkPassword()">入室する</button>
+    <div id="pw-note">パスワードはBASEご購入後に<br>メッセージでお知らせします</div>
+  </div>
+</div>
+
+<!-- ── ヘッダー ── -->
+<div id="header">
+  <div id="header-title-area" onclick="resetAll()" style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:22px">🏛️</span>
+    <div>
+      <div class="title">ひとり社長の経営会議室</div>
+      <div class="sub">AI Board Meeting · 専門家5名 + 司会</div>
+    </div>
+  </div>
+  <div id="step-dots">
+    <div class="dot" id="dot0"></div>
+    <div class="dot" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+    <div class="dot" id="dot3"></div>
+  </div>
+  <button id="btn-reset" onclick="resetAll()">最初から</button>
+</div>
+
+<div id="app">
+
+  <!-- ── PHASE 0: input ── -->
+  <div id="phase-input" class="phase show fade">
+    <p class="intro-title">テーマに合わせて、最適な専門家が集まります</p>
+    <p class="intro-sub">AIがテーマを読んで15名の専門家から5名を自動選定。入れ替えも自由です。</p>
+    <div id="pool-preview"></div>
+    <div class="card" style="border-color:rgba(229,201,122,0.25)">
+      <div style="font-family:'Noto Serif JP';font-size:16px;color:var(--gold);margin-bottom:6px">会議のテーマを入力</div>
+      <div style="font-size:12px;color:#555;margin-bottom:14px">経営課題・新企画・採用・コスト削減・EC参入など何でもOK</div>
+      
+      <select id="theme-preset" class="theme-select" onchange="applyPresetTheme()">
+        <option value="">▼ 候補から選ぶ（自由入力も可能です）</option>
+        <option value="SNSを活用した新規顧客獲得の具体策について話し合いたい">SNSを活用した新規顧客獲得の具体策について話し合いたい</option>
+        <option value="来期の採用強化と、優秀な人材の定着をどう進めるべきか">来期の採用強化と、優秀な人材の定着をどう進めるべきか</option>
+        <option value="既存事業と差別化するための、新規EC参入戦略とコスト感">既存事業と差別化するための、新規EC参入戦略とコスト感</option>
+      </select>
+
+      <textarea id="topic-input" rows="4" placeholder="例：SNSを活用した新規顧客獲得の具体策&#10;例：来期の採用強化をどう進めるか&#10;例：EC参入で既存事業とどう差別化するか"></textarea>
+      <button id="btn-suggest" class="btn-gold" onclick="suggestMembers()" style="width:100%;padding:15px;font-size:15px;margin-top:14px" disabled>
+        🔍 最適なメンバーを選定する
+      </button>
+    </div>
+  </div>
+
+  <!-- ── PHASE 1: suggest ── -->
+  <div id="phase-suggest" class="phase">
+    <p id="suggest-title">AIが選んだ今回のメンバー</p>
+    <p id="suggest-reason"></p>
+    <div id="member-grid"></div>
+    <div id="swap-panel">
+      <div id="swap-panel-title"></div>
+      <div id="swap-pool"></div>
+    </div>
+    <div id="suggest-btns">
+      <button class="btn-gold" onclick="startMeeting()" style="flex:1;padding:15px;font-size:15px">🏛️ このメンバーで会議を開始</button>
+      <button class="btn-ghost" onclick="backToInput()" style="padding:15px 18px;font-size:13px">← テーマを変更</button>
+    </div>
+  </div>
+
+  <!-- ── PHASE 2: meeting ── -->
+  <div id="phase-meeting" class="phase">
+    <div id="topic-bar" class="card" style="border-color:rgba(229,201,122,0.15)">
+      <div style="flex:1"><div class="topic-label">議題</div><div class="topic-text" id="topic-bar-text"></div></div>
+      <div class="member-emojis" id="member-emojis-bar"></div>
+    </div>
+    <div id="rounds-container"></div>
+    <div id="conclusion-box"><div class="c-title">🏆 本日の会議の結論</div><div class="c-text" id="conclusion-text"></div></div>
+    <div id="loading-box">
+      <div class="l-emoji pulse">⚙️</div>
+      <div class="l-text" id="loading-msg">処理中...</div>
+    </div>
+    <div id="meeting-btns">
+      <button id="btn-next-round" class="btn-gold" onclick="nextRound()" style="flex:1;padding:14px;font-size:14px" disabled>次のラウンドへ</button>
+      <button id="btn-force-conclude" class="btn-ghost" onclick="forceConclusion()" style="padding:14px 16px;font-size:12px" disabled>今すぐ結論を出す</button>
+    </div>
+  </div>
+
+  <!-- ── PHASE 3: minutes ── -->
+  <div id="phase-minutes" class="phase">
+    <div id="minutes-box">
+      <div class="min-title">📄 議事録</div>
+      <pre id="minutes-text"></pre>
+    </div>
+    <div id="minutes-btns">
+      <button id="btn-copy" class="btn-gold" onclick="copyMinutes()" style="flex:1;padding:14px;font-size:14px">📋 議事録をコピー</button>
+      <button class="btn-ghost" onclick="showPhase('meeting')" style="padding:14px 16px;font-size:12px">← 会議に戻る</button>
+      <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">新しい会議</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ============================================================
+//  設定
+// ============================================================
+const WORKER_URL = 'https://kaigi-mikkke.yymmatsu.workers.dev';
+
+// ============================================================
+//  パスワード認証
+// ============================================================
+const CORRECT_PASSWORD = 'kaigi2026';
+const PAY_START = new Date('2026-04-01');
+
+function needsPassword() { return new Date() >= PAY_START; }
+
+function checkPassword() {
+  const input = document.getElementById('pw-input').value;
+  const errEl = document.getElementById('pw-error');
+  if (input === CORRECT_PASSWORD) {
+    document.getElementById('pw-screen').style.display = 'none';
+    sessionStorage.setItem('kaigi-auth', '1');
+  } else {
+    errEl.textContent = 'パスワードが違います。もう一度お試しください。';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+// ============================================================
+//  専門家プール（15名）
+// ============================================================
+const POOL = [
+  { id:'market',   name:'鈴木 雅',   role:'市場専門家',          emoji:'📊', accent:'#4FC3F7', desc:'市場調査・競合分析・トレンド把握' },
+  { id:'planning', name:'佐藤 里奈', role:'企画専門家',          emoji:'💡', accent:'#81C784', desc:'ビジネスモデル・新企画・アイデア立案' },
+  { id:'product',  name:'伊藤 健',   role:'商品専門家',          emoji:'📦', accent:'#FF8A65', desc:'商品開発・品質・差別化・顧客価値' },
+  { id:'sales',    name:'山田 大輔', role:'販売戦略専門家',      emoji:'🚀', accent:'#CE93D8', desc:'営業・マーケティング・集客・SNS' },
+  { id:'finance',  name:'中村 恵子', role:'財務専門家',          emoji:'💰', accent:'#F48FB1', desc:'収益性・コスト・投資対効果' },
+  { id:'hr',       name:'林 美咲',   role:'人事・採用専門家',    emoji:'👥', accent:'#80DEEA', desc:'採用戦略・組織開発・人材育成' },
+  { id:'legal',    name:'岡田 誠一', role:'法務・コンプライアンス',emoji:'⚖️',accent:'#FFD54F', desc:'契約・リスク管理・法規制対応' },
+  { id:'it',       name:'田村 翔',   role:'IT・DX専門家',        emoji:'💻', accent:'#A5D6A7', desc:'システム化・デジタル化・自動化' },
+  { id:'pr',       name:'石井 麻衣', role:'広報・ブランド専門家',emoji:'📣', accent:'#FFAB91', desc:'ブランディング・PR・メディア対応' },
+  { id:'ops',      name:'前田 勇',   role:'生産・オペレーション',emoji:'🏭', accent:'#B39DDB', desc:'製造・品質管理・コスト削減・物流' },
+  { id:'ec',       name:'木村 彩香', role:'EC・通販専門家',      emoji:'🛒', accent:'#80CBC4', desc:'EC戦略・物流・カスタマーサポート' },
+  { id:'global',   name:'高橋 慎介', role:'海外・グローバル専門家',emoji:'🌏',accent:'#FFF176', desc:'輸出入・海外展開・多文化対応' },
+  { id:'brand',    name:'西村 優子', role:'ブランド戦略専門家',  emoji:'✨', accent:'#F8BBD0', desc:'ブランド価値・デザイン・体験設計' },
+  { id:'cx',       name:'松本 直子', role:'顧客体験専門家',      emoji:'💖', accent:'#DCEDC8', desc:'顧客満足・LTV向上・リピート施策' },
+  { id:'strategy', name:'渡辺 隆',   role:'経営戦略専門家',      emoji:'🎯', accent:'#CFD8DC', desc:'中期戦略・M&A・事業ポートフォリオ' },
+];
+const MODERATOR = { name:'田中 誠', role:'司会', emoji:'🎙️', accent:'#E5C97A' };
+const MAX_ROUNDS = 4;
+
+// ============================================================
+//  状態管理
+// ============================================================
+let state = {
+  phase: 'input',
+  topic: '',
+  members: [],       // 選定された5名
+  swapTarget: null,  // 入れ替え対象index
+  rounds: [],
+  concluded: false,
+  conclusion: '',
+};
+
+// ============================================================
+//  初期化
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // パスワード認証チェック
+  if (!needsPassword() || sessionStorage.getItem('kaigi-auth') === '1') {
+    document.getElementById('pw-screen').style.display = 'none';
+  }
+  // アプリ初期化
+  renderPoolPreview();
+  document.getElementById('topic-input').addEventListener('input', e => {
+    document.getElementById('btn-suggest').disabled = !e.target.value.trim();
+    if (!e.target.value.trim()) document.getElementById('theme-preset').value = "";
+  });
+  updateDots();
+});
+
+function applyPresetTheme() {
+  const select = document.getElementById('theme-preset');
+  const textarea = document.getElementById('topic-input');
+  const btn = document.getElementById('btn-suggest');
+  
+  if (select.value) {
+    textarea.value = select.value;
+    btn.disabled = false;
+  }
+}
+
+function renderPoolPreview() {
+  const el = document.getElementById('pool-preview');
+  el.innerHTML = POOL.map(e =>
+    `<span class="pool-badge" style="background:${e.accent}18;border:1px solid ${e.accent}30;color:${e.accent}">${e.emoji} ${e.role}</span>`
+  ).join('');
+}
+
+// ============================================================
+//  API呼び出し (Cloudflare Workers経由)
+// ============================================================
+async function callAPI(systemPrompt, userMsg, maxTokens = 1500) {
+  const body = {
+    model: 'claude-sonnet-4-6',
+    max_tokens: maxTokens,
+    messages: [{ role: 'user', content: userMsg }]
+  };
+  if (systemPrompt) body.system = systemPrompt;
+
+  let retryCount = 0;
+  const maxRetries = 3;
+  const baseDelay = 1000;
+
+  while (retryCount <= maxRetries) {
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `HTTPエラー: ${res.status}`);
+      }
+      const data = await res.json();
+      return data.content?.[0]?.text || '';
+    } catch(err) {
+      retryCount++;
+      if (retryCount > maxRetries) throw err;
+      await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, retryCount - 1)));
+    }
+  }
+}
+
+// ============================================================
+//  フェーズ管理
+// ============================================================
+const PHASES = ['input','suggest','meeting','minutes'];
+
+function showPhase(name) {
+  PHASES.forEach(p => {
+    const el = document.getElementById('phase-' + p);
+    if (el) { el.classList.remove('show'); el.classList.remove('fade'); }
+  });
+  const target = document.getElementById('phase-' + name);
+  if (target) {
+    target.classList.add('show');
+    requestAnimationFrame(() => target.classList.add('fade'));
+  }
+  state.phase = name;
+  updateDots();
+  document.getElementById('btn-reset').style.display = name !== 'input' ? 'block' : 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateDots() {
+  const idx = PHASES.indexOf(state.phase);
+  PHASES.forEach((p, i) => {
+    const dot = document.getElementById('dot' + i);
+    dot.className = 'dot' + (i === idx ? ' active' : i < idx ? ' done' : '');
+  });
+}
+
+// ============================================================
+//  STEP 1: メンバー選定
+// ============================================================
+async function suggestMembers() {
+  const topic = document.getElementById('topic-input').value.trim();
+  if (!topic) return;
+  state.topic = topic;
+
+  const btn = document.getElementById('btn-suggest');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="pulse">⚙️ テーマを分析中...</span>';
+
+  const systemPrompt = `あなたは経営会議のメンバー選定アドバイザーです。
+テーマを読み、以下の専門家IDから最も適切な5名を選んで返してください。
+必ずJSON形式のみで返してください。余分なテキスト・コードブロック不可。
+{"selected":["id1","id2","id3","id4","id5"],"reason":"選定理由を100字以内で"}`;
+
+  const ids = POOL.map(e => e.id).join(', ');
+  const userMsg = `テーマ：「${topic}」\n利用可能なID：${ids}`;
+
+  try {
+    const raw = await callAPI(systemPrompt, userMsg, 500);
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    state.members = parsed.selected.map(id => POOL.find(e => e.id === id)).filter(Boolean);
+    // 5名未満なら補充
+    if (state.members.length < 5) {
+      const have = state.members.map(m => m.id);
+      for (const e of POOL) {
+        if (state.members.length >= 5) break;
+        if (!have.includes(e.id)) state.members.push(e);
+      }
+    }
+    renderSuggestPhase(parsed.reason || '');
+    showPhase('suggest');
+  } catch(err) {
+    alert('選定中にエラーが発生しました: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔍 最適なメンバーを選定する';
+}
+
+function renderSuggestPhase(reason) {
+  document.getElementById('suggest-reason').textContent = reason;
+  state.swapTarget = null;
+  renderMemberGrid();
+  document.getElementById('swap-panel').style.display = 'none';
+}
+
+function renderMemberGrid() {
+  const grid = document.getElementById('member-grid');
+  grid.innerHTML = state.members.map((m, i) => {
+    const sel = state.swapTarget === i;
+    return `<div class="member-card ${sel ? 'selected' : ''}"
+      style="background:${sel ? m.accent+'22' : 'rgba(255,255,255,0.04)'};
+             border:${sel ? '2px' : '1px'} solid ${sel ? m.accent : m.accent+'44'}"
+      onclick="selectSwapTarget(${i})">
+      ${sel ? `<div class="sel-badge" style="color:${m.accent}">選択中</div>` : ''}
+      <div class="m-emoji">${m.emoji}</div>
+      <div class="m-name" style="color:${m.accent}">${m.name}</div>
+      <div class="m-role">${m.role}</div>
+      <div class="m-desc">${m.desc}</div>
+      <div class="m-swap">${sel ? '✕ キャンセル' : '🔄 入れ替え'}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectSwapTarget(idx) {
+  if (state.swapTarget === idx) {
+    state.swapTarget = null;
+    document.getElementById('swap-panel').style.display = 'none';
+  } else {
+    state.swapTarget = idx;
+    renderSwapPanel();
+  }
+  renderMemberGrid();
+}
+
+function renderSwapPanel() {
+  const panel = document.getElementById('swap-panel');
+  const m = state.members[state.swapTarget];
+  document.getElementById('swap-panel-title').textContent = `「${m.name}」の代わりに選ぶ専門家`;
+
+  const available = POOL.filter(e => !state.members.find(s => s.id === e.id));
+  document.getElementById('swap-pool').innerHTML = available.map(e =>
+    `<div class="swap-option"
+      style="background:${e.accent}0d;border:1px solid ${e.accent}33"
+      onclick="doSwap('${e.id}')">
+      <span class="so-emoji">${e.emoji}</span>
+      <div>
+        <div class="so-name" style="color:${e.accent}">${e.name}</div>
+        <div class="so-role">${e.role}</div>
+      </div>
+    </div>`
+  ).join('');
+  panel.style.display = 'block';
+}
+
+function doSwap(newId) {
+  if (state.swapTarget === null) return;
+  const newMember = POOL.find(e => e.id === newId);
+  if (!newMember) return;
+  state.members[state.swapTarget] = newMember;
+  state.swapTarget = null;
+  renderMemberGrid();
+  document.getElementById('swap-panel').style.display = 'none';
+}
+
+// ============================================================
+//  STEP 2: 会議進行
+// ============================================================
+function buildMeetingSystem() {
+  return `あなたは「ひとり社長の経営会議室」のAIです。
+以下のメンバーを完全に演じてください。
+
+【司会】田中 誠：場を整え議論をまとめ結論へ導くプロ。温かく、しかし鋭い。
+【専門家】
+${state.members.map(m => `- ${m.name}（${m.role}）：${m.desc}`).join('\n')}
+
+【会議ルール】
+・各専門家は自分の専門から具体的・実践的な意見（150〜200字）を述べる
+・意見の対立も建設的に行う
+・司会は冒頭でまとめ、論点を提示する
+・最終ラウンドで司会が明確な結論を出す
+
+【必須】以下のJSON形式のみで返すこと。余分なテキスト不可：
+{
+  "round": ラウンド番号,
+  "moderator_intro": "司会の冒頭発言",
+  "statements": [
+    {"id":"専門家id","name":"名前","role":"役職","emoji":"絵文字","text":"発言内容"}
+  ],
+  "moderator_close": "司会まとめ",
+  "concluded": true/false,
+  "conclusion": "最終結論（concludedがtrueの時のみ）"
+}`;
+}
+
+function buildMeetingMsg(roundNum, force) {
+  let msg = `テーマ：「${state.topic}」\n\n`;
+  if (state.rounds.length === 0) {
+    msg += `ラウンド1を開始してください。各専門家が初期意見・課題認識を述べてください。`;
+  } else {
+    msg += `これまでの議論：\n`;
+    state.rounds.forEach(r => {
+      msg += `\n【R${r.round}】司会：${r.moderator_intro}\n`;
+      r.statements.forEach(s => { msg += `${s.name}：${s.text}\n`; });
+      msg += `司会まとめ：${r.moderator_close}\n`;
+    });
+    msg += `\nラウンド${roundNum}を進めてください。`;
+    if (force) msg += `今回が最終ラウンドです。必ずconcludedをtrueにして具体的な結論を出してください。`;
+  }
+  return msg;
+}
+
+async function startMeeting() {
+  state.rounds = [];
+  state.concluded = false;
+  state.conclusion = '';
+
+  // UIセット
+  document.getElementById('topic-bar-text').textContent = state.topic;
+  document.getElementById('member-emojis-bar').innerHTML = state.members.map(m => `<span title="${m.name}">${m.emoji}</span>`).join('');
+  document.getElementById('rounds-container').innerHTML = '';
+  document.getElementById('conclusion-box').style.display = 'none';
+  document.getElementById('btn-next-round').style.display = '';
+  document.getElementById('btn-force-conclude').style.display = '';
+  showPhase('meeting');
+
+  await runRound(false);
+}
+
+async function runRound(force = false) {
+  setLoadingVisible(true, '専門家たちが議論中...');
+  setMeetingBtnsEnabled(false);
+
+  const roundNum = state.rounds.length + 1;
+  const forceConclusion = force || roundNum >= MAX_ROUNDS;
+
+  try {
+    const raw = await callAPI(buildMeetingSystem(), buildMeetingMsg(roundNum, forceConclusion), 2000);
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    state.rounds.push(parsed);
+    renderRound(parsed);
+
+    if (parsed.concluded) {
+      state.concluded = true;
+      state.conclusion = parsed.conclusion || parsed.moderator_close;
+      showConclusion(state.conclusion);
+      // ボタン切り替え
+      document.getElementById('btn-next-round').style.display = 'none';
+      document.getElementById('btn-force-conclude').style.display = 'none';
+      const meetBtns = document.getElementById('meeting-btns');
+      meetBtns.innerHTML = `
+        <button class="btn-gold" onclick="generateMinutes()" style="flex:1;padding:14px;font-size:14px">📄 議事録を生成する</button>
+        <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">新しい会議</button>`;
+    } else {
+      setMeetingBtnsEnabled(true);
+      updateNextRoundLabel();
+    }
+  } catch(err) {
+    alert('会議中にエラーが発生しました: ' + err.message);
+  }
+
+  setLoadingVisible(false);
+  scrollToBottom();
+}
+
+function nextRound()       { runRound(false); }
+function forceConclusion() { runRound(true);  }
+
+function updateNextRoundLabel() {
+  const btn = document.getElementById('btn-next-round');
+  if (btn) btn.textContent = `次のラウンドへ → (${state.rounds.length + 1}/${MAX_ROUNDS})`;
+}
+
+function setMeetingBtnsEnabled(enabled) {
+  const b1 = document.getElementById('btn-next-round');
+  const b2 = document.getElementById('btn-force-conclude');
+  if (b1) b1.disabled = !enabled;
+  if (b2) b2.disabled = !enabled;
+}
+
+function setLoadingVisible(show, msg = '') {
+  const box = document.getElementById('loading-box');
+  box.style.display = show ? 'block' : 'none';
+  if (msg) document.getElementById('loading-msg').textContent = msg;
+}
+
+function renderRound(round) {
+  const container = document.getElementById('rounds-container');
+  const div = document.createElement('div');
+  div.className = 'round-block fade';
+  div.innerHTML = `
+    <div class="round-badge-row">
+      <span class="round-badge">ROUND ${round.round}</span>
+      <div class="round-divider"></div>
+    </div>
+    <div class="speech-mod-intro">
+      <span class="sp-emoji">🎙️</span>
+      <div>
+        <div class="sp-name" style="color:#E5C97A">田中 誠（司会）</div>
+        <div class="sp-text">${escHtml(round.moderator_intro)}</div>
+      </div>
+    </div>
+    ${round.statements.map(s => {
+      const acc = (state.members.find(m => m.id === s.id) || {}).accent || '#aaa';
+      return `<div class="speech-expert" style="border-left:3px solid ${acc}">
+        <span class="sp-emoji">${s.emoji}</span>
+        <div>
+          <div class="sp-name" style="color:${acc}">${escHtml(s.name)}（${escHtml(s.role)}）</div>
+          <div class="sp-text">${escHtml(s.text)}</div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div class="speech-close">
+      <span class="sp-emoji" style="font-size:16px">📋</span>
+      <div>
+        <div class="close-label">司会まとめ</div>
+        <div class="sp-text-italic">${escHtml(round.moderator_close)}</div>
+      </div>
+    </div>`;
+  container.appendChild(div);
+}
+
+function showConclusion(text) {
+  const box = document.getElementById('conclusion-box');
+  document.getElementById('conclusion-text').textContent = text;
+  box.style.display = 'block';
+}
+
+// ============================================================
+//  STEP 3: 議事録生成
+// ============================================================
+async function generateMinutes() {
+  setLoadingVisible(true, '議事録を生成中...');
+  setMeetingBtnsEnabled(false);
+
+  let prompt = `テーマ：${state.topic}\n参加者（AI専門家）：${state.members.map(m => m.name+'（'+m.role+'）').join('、')}\n\n`;
+  state.rounds.forEach(r => {
+    prompt += `【R${r.round}】司会：${r.moderator_intro}\n`;
+    r.statements.forEach(s => { prompt += `${s.name}：${s.text}\n`; });
+    prompt += `司会まとめ：${r.moderator_close}\n\n`;
+  });
+  prompt += `結論：${state.conclusion}\n\n`;
+  prompt += `上記の会議内容を議事録としてまとめてください。
+
+【出力ルール・厳守】
+・##、**、__、#、* などのマークダウン記号は一切使わないこと
+・見出しは「◆ 会議の目的」のように記号＋日本語で表現すること
+・箇条書きは「・」を使うこと
+・アクションプランは「1.」「2.」の番号付きで書くこと
+・自然で読みやすい日本語で書くこと
+
+【議事録の構成】
+
+議事録
+日時：本日
+テーマ：
+参加者（AI専門家）：
+
+◆ 会議の目的
+
+◆ 主要な論点
+（ラウンドごとに「・」で整理）
+
+◆ 対立・課題点
+
+◆ 合意事項
+
+◆ 決定事項・アクションプラン
+（番号付きで具体的に）
+
+◆ 次回への課題`;
+
+  try {
+    const raw = await callAPI(null, prompt, 2000);
+    document.getElementById('minutes-text').textContent = raw;
+    showPhase('minutes');
+  } catch(err) {
+    alert('議事録生成中にエラーが発生しました: ' + err.message);
+  }
+
+  setLoadingVisible(false);
+}
+
+function copyMinutes() {
+  const text = document.getElementById('minutes-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✅ コピーしました！';
+    setTimeout(() => { btn.innerHTML = '📋 議事録をコピー'; }, 2500);
+  });
+}
+
+// ============================================================
+//  ユーティリティ
+// ============================================================
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function scrollToBottom() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+function backToInput() { showPhase('input'); }
+
+function resetAll() {
+  state = { phase:'input', topic:'', members:[], swapTarget:null, rounds:[], concluded:false, conclusion:'' };
+  document.getElementById('topic-input').value = '';
+  document.getElementById('theme-preset').value = '';
+  document.getElementById('btn-suggest').disabled = true;
+  document.getElementById('rounds-container').innerHTML = '';
+  document.getElementById('conclusion-box').style.display = 'none';
+  document.getElementById('minutes-text').textContent = '';
+  document.getElementById('meeting-btns').innerHTML = `
+    <button id="btn-next-round" class="btn-gold" onclick="nextRound()" style="flex:1;padding:14px;font-size:14px" disabled>次のラウンドへ</button>
+    <button id="btn-force-conclude" class="btn-ghost" onclick="forceConclusion()" style="padding:14px 16px;font-size:12px" disabled>今すぐ結論を出す</button>`;
+  showPhase('input');
+}
+</script>
+</body>
+</html>
