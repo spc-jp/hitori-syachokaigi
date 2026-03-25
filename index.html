@@ -133,6 +133,51 @@
   #pw-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
   #pw-note { font-size: 11px; color: #555; line-height: 1.8; }
 
+  /* ── 会議開始パスワード画面 ── */
+  #meeting-pw-screen {
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(15,23,42,0.92);
+    backdrop-filter: blur(14px);
+    display: none; align-items: center; justify-content: center;
+  }
+  #meeting-pw-card {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(229,201,122,0.3);
+    border-radius: 20px; padding: 40px 36px; width: 380px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5); text-align: center;
+  }
+  #meeting-pw-card .mpw-icon  { font-size: 40px; margin-bottom: 14px; }
+  #meeting-pw-card .mpw-title { font-family: 'Noto Serif JP'; font-size: 17px; color: #E5C97A; margin-bottom: 6px; font-weight: 700; }
+  #meeting-pw-card .mpw-sub   { font-size: 12px; color: #888; margin-bottom: 22px; line-height: 1.7; }
+  #meeting-pw-card .mpw-divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0; }
+  #meeting-pw-input {
+    width: 100%; padding: 13px 16px; font-size: 14px;
+    border: 1.5px solid rgba(229,201,122,0.3); border-radius: 10px;
+    font-family: 'Noto Sans JP'; color: #ddd;
+    background: rgba(255,255,255,0.05);
+    margin-bottom: 10px; transition: border-color .2s;
+  }
+  #meeting-pw-input:focus { outline: none; border-color: #E5C97A; }
+  #meeting-pw-input::placeholder { color: #555; }
+  #meeting-pw-error { font-size: 12px; color: #ff6b6b; min-height: 16px; margin-bottom: 10px; }
+  #btn-meeting-pw {
+    width: 100%; padding: 13px; font-size: 14px; font-weight: 700;
+    background: linear-gradient(135deg, #E5C97A, #C9A84C);
+    border: none; border-radius: 10px; color: #0F172A;
+    cursor: pointer; font-family: 'Noto Sans JP'; transition: all .2s; margin-bottom: 10px;
+  }
+  #btn-meeting-pw:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  #btn-stripe {
+    width: 100%; padding: 13px; font-size: 14px; font-weight: 700;
+    background: linear-gradient(135deg, #635BFF, #4F46E5);
+    border: none; border-radius: 10px; color: #fff;
+    cursor: pointer; font-family: 'Noto Sans JP'; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    text-decoration: none; margin-bottom: 12px;
+  }
+  #btn-stripe:hover { transform: translateY(-1px); filter: brightness(1.1); }
+  #btn-meeting-cancel { font-size: 12px; color: #555; cursor: pointer; background: none; border: none; font-family: 'Noto Sans JP'; }
+  #btn-meeting-cancel:hover { color: #888; }
+
   /* ── ヘッダータイトルクリック ── */
   #header-title-area { cursor: pointer; transition: opacity .2s; }
   #header-title-area:hover { opacity: 0.75; }
@@ -236,6 +281,25 @@
 </style>
 </head>
 <body>
+
+<!-- ── 会議開始パスワード画面 ── -->
+<div id="meeting-pw-screen">
+  <div id="meeting-pw-card">
+    <div class="mpw-icon">🔐</div>
+    <div class="mpw-title">会議を開始するには<br>パスワードが必要です</div>
+    <div class="mpw-sub">ひとり社長の経営会議室は月額2,980円のサービスです。<br>ご購入後にパスワードをお届けします。</div>
+    <a id="btn-stripe" href="https://buy.stripe.com/bJe4gy5ey4QZ4KHbRacV209" target="_blank">
+      🔒 安全なStripeで購入する（月額2,980円）
+    </a>
+    <hr class="mpw-divider">
+    <div style="font-size:12px;color:#666;margin-bottom:12px">すでにパスワードをお持ちの方</div>
+    <input id="meeting-pw-input" type="password" placeholder="パスワードを入力"
+      onkeydown="if(event.key==='Enter') checkMeetingPassword()">
+    <div id="meeting-pw-error"></div>
+    <button id="btn-meeting-pw" onclick="checkMeetingPassword()">入室して会議を開始する</button>
+    <button id="btn-meeting-cancel" onclick="hideMeetingPwScreen()">← 戻る</button>
+  </div>
+</div>
 
 <!-- ── パスワード画面 ── -->
 <div id="pw-screen">
@@ -353,6 +417,31 @@ const WORKER_URL = 'https://kaigi-mikkke.yymmatsu.workers.dev';
 // ============================================================
 const CORRECT_PASSWORD = 'kaigi2026';
 const PAY_START = new Date('2026-04-01');
+
+function showMeetingPwScreen() {
+  document.getElementById('meeting-pw-screen').style.display = 'flex';
+  document.getElementById('meeting-pw-input').value = '';
+  document.getElementById('meeting-pw-error').textContent = '';
+  document.getElementById('meeting-pw-input').focus();
+}
+
+function hideMeetingPwScreen() {
+  document.getElementById('meeting-pw-screen').style.display = 'none';
+}
+
+function checkMeetingPassword() {
+  const input = document.getElementById('meeting-pw-input').value;
+  const errEl = document.getElementById('meeting-pw-error');
+  if (input === CORRECT_PASSWORD) {
+    sessionStorage.setItem('kaigi-auth', '1');
+    hideMeetingPwScreen();
+    startMeeting();
+  } else {
+    errEl.textContent = 'パスワードが違います。もう一度お試しください。';
+    document.getElementById('meeting-pw-input').value = '';
+    document.getElementById('meeting-pw-input').focus();
+  }
+}
 
 function needsPassword() { return new Date() >= PAY_START; }
 
@@ -661,6 +750,11 @@ function buildMeetingMsg(roundNum, force) {
 }
 
 async function startMeeting() {
+  // パスワードチェック（4月1日以降）
+  if (needsPassword() && sessionStorage.getItem('kaigi-auth') !== '1') {
+    showMeetingPwScreen();
+    return;
+  }
   state.rounds = [];
   state.concluded = false;
   state.conclusion = '';
