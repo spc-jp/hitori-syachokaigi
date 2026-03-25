@@ -442,7 +442,12 @@ function checkMeetingPassword() {
   if (input === CORRECT_PASSWORD) {
     sessionStorage.setItem('kaigi-auth', '1');
     hideMeetingPwScreen();
-    startMeeting();
+    // ラウンド0なら会議開始、それ以外は次のラウンドへ
+    if (state.rounds.length === 0) {
+      startMeeting();
+    } else {
+      runRound(false);
+    }
   } else {
     errEl.textContent = 'パスワードが違います。もう一度お試しください。';
     document.getElementById('meeting-pw-input').value = '';
@@ -744,24 +749,22 @@ function buildMeetingMsg(roundNum, force) {
   if (state.rounds.length === 0) {
     msg += `ラウンド1を開始してください。各専門家が初期意見・課題認識を述べてください。`;
   } else {
-    msg += `これまでの議論：\n`;
+    msg += `これまでの議論（要約）：\n`;
     state.rounds.forEach(r => {
-      msg += `\n【R${r.round}】司会：${r.moderator_intro}\n`;
-      r.statements.forEach(s => { msg += `${s.name}：${s.text}\n`; });
-      msg += `司会まとめ：${r.moderator_close}\n`;
+      // 各発言を80字に圧縮して送信トークンを削減
+      msg += `\n【R${r.round}】司会まとめ：${r.moderator_close}\n`;
+      r.statements.forEach(s => {
+        const short = s.text.length > 80 ? s.text.slice(0, 80) + '…' : s.text;
+        msg += `${s.name}：${short}\n`;
+      });
     });
     msg += `\nラウンド${roundNum}を進めてください。`;
-    if (force) msg += `今回が最終ラウンドです。必ずconcludedをtrueにして具体的な結論を出してください。`;
+    if (force) msg += `今回が最終ラウンドです。必ずconcludedをtrueにして具体的な結論と次のアクションプランを出してください。`;
   }
   return msg;
 }
 
 async function startMeeting() {
-  // パスワード未認証なら購入・パスワード画面を表示
-  if (sessionStorage.getItem('kaigi-auth') !== '1') {
-    showMeetingPwScreen();
-    return;
-  }
   state.rounds = [];
   state.concluded = false;
   state.conclusion = '';
@@ -784,52 +787,74 @@ async function runRound(force = false) {
 
   const roundNum = state.rounds.length + 1;
   const forceConclusion = force || roundNum >= MAX_ROUNDS;
+  const maxTok = 3000;
+  let parsed = null;
 
-  // ラウンドが進むほどトークンを増やす
-  const maxTok = roundNum >= MAX_ROUNDS ? 3000 : 2000;
-
-  try {
-    const raw = await callAPI(buildMeetingSystem(), buildMeetingMsg(roundNum, forceConclusion), maxTok);
-
-    // JSON抽出を強化（```json ``` や前後のテキストを除去）
-    let jsonStr = raw;
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (jsonMatch) jsonStr = jsonMatch[0];
-    jsonStr = jsonStr.replace(/```json|```/g, '').trim();
-
-    const parsed = JSON.parse(jsonStr);
-    state.rounds.push(parsed);
-    renderRound(parsed);
-
-    if (parsed.concluded || forceConclusion) {
-      state.concluded = true;
-      state.conclusion = parsed.conclusion || parsed.moderator_close || 'まとめを確認してください。';
-      showConclusion(state.conclusion);
-      document.getElementById('btn-next-round').style.display = 'none';
-      document.getElementById('btn-force-conclude').style.display = 'none';
-      const meetBtns = document.getElementById('meeting-btns');
-      meetBtns.innerHTML = `
-        <button class="btn-gold" onclick="generateMinutes()" style="flex:1;padding:14px;font-size:14px">📄 議事録を生成する</button>
-        <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">新しい会議</button>`;
-    } else {
-      setMeetingBtnsEnabled(true);
-      updateNextRoundLabel();
+  // 最大2回自動リトライ
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (attempt > 0) {
+        document.getElementById('loading-msg').textContent = '再接続中...もう少しお待ちください';
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      const raw = await callAPI(buildMeetingSystem(), buildMeetingMsg(roundNum, forceConclusion), maxTok);
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : raw.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(jsonStr);
+      break; // 成功したらループを抜ける
+    } catch(err) {
+      console.error(`attempt ${attempt + 1} failed:`, err);
+      if (attempt === 1) {
+        // 2回失敗したらリトライボタン表示
+        setLoadingVisible(false);
+        const meetBtns = document.getElementById('meeting-btns');
+        meetBtns.innerHTML = `
+          <button class="btn-gold" onclick="runRound(${forceConclusion})" style="flex:1;padding:14px;font-size:14px">🔄 もう一度試す</button>
+          <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">最初から</button>`;
+        return;
+      }
     }
-  } catch(err) {
-    console.error('runRound error:', err);
-    // エラー時はリトライボタンを表示
+  }
+
+  if (!parsed) return;
+
+  state.rounds.push(parsed);
+  renderRound(parsed);
+
+  if (parsed.concluded || forceConclusion) {
+    state.concluded = true;
+    state.conclusion = parsed.conclusion || parsed.moderator_close || 'まとめを確認してください。';
+    showConclusion(state.conclusion);
+    document.getElementById('btn-next-round').style.display = 'none';
+    document.getElementById('btn-force-conclude').style.display = 'none';
     const meetBtns = document.getElementById('meeting-btns');
     meetBtns.innerHTML = `
-      <button class="btn-gold" onclick="runRound(${forceConclusion})" style="flex:1;padding:14px;font-size:14px">🔄 もう一度試す</button>
-      <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">最初から</button>`;
+      <button class="btn-gold" onclick="generateMinutes()" style="flex:1;padding:14px;font-size:14px">📄 議事録を生成する</button>
+      <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">新しい会議</button>`;
+  } else {
+    setMeetingBtnsEnabled(true);
+    updateNextRoundLabel();
   }
 
   setLoadingVisible(false);
   scrollToBottom();
 }
 
-function nextRound()       { runRound(false); }
-function forceConclusion() { runRound(true);  }
+function nextRound() {
+  // ラウンド2以降は認証チェック
+  if (sessionStorage.getItem('kaigi-auth') !== '1') {
+    showMeetingPwScreen();
+    return;
+  }
+  runRound(false);
+}
+function forceConclusion() {
+  if (sessionStorage.getItem('kaigi-auth') !== '1') {
+    showMeetingPwScreen();
+    return;
+  }
+  runRound(true);
+}
 
 function updateNextRoundLabel() {
   const btn = document.getElementById('btn-next-round');
