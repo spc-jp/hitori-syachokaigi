@@ -268,8 +268,43 @@
   #conclusion-box .c-text  { font-size: 14px; line-height: 2; color: #ddd; }
 
   #loading-box { text-align: center; padding: 40px; display: none; }
-  #loading-box .l-emoji { font-size: 32px; margin-bottom: 10px; }
-  #loading-box .l-text  { font-size: 13px; color: rgba(229,201,122,0.6); }
+  #loading-box .l-text  { font-size: 13px; color: rgba(229,201,122,0.6); margin-top: 16px; }
+
+  /* ── 会議中アニメーション ── */
+  .meeting-anim { display: flex; justify-content: center; align-items: flex-end; gap: 10px; height: 60px; margin-bottom: 8px; }
+  .meeting-anim .person {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .meeting-anim .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; border: 2px solid transparent;
+    animation: avatarBob 1.4s ease-in-out infinite;
+  }
+  .meeting-anim .person:nth-child(1) .avatar { animation-delay: 0s; border-color: #4FC3F7; background: rgba(79,195,247,0.15); }
+  .meeting-anim .person:nth-child(2) .avatar { animation-delay: 0.2s; border-color: #81C784; background: rgba(129,199,132,0.15); }
+  .meeting-anim .person:nth-child(3) .avatar { animation-delay: 0.4s; border-color: #E5C97A; background: rgba(229,201,122,0.15); }
+  .meeting-anim .person:nth-child(4) .avatar { animation-delay: 0.6s; border-color: #FF8A65; background: rgba(255,138,101,0.15); }
+  .meeting-anim .person:nth-child(5) .avatar { animation-delay: 0.8s; border-color: #CE93D8; background: rgba(206,147,216,0.15); }
+  .meeting-anim .speech-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #E5C97A;
+    animation: speechDot 1.4s ease-in-out infinite; opacity: 0;
+  }
+  .meeting-anim .person:nth-child(1) .speech-dot { animation-delay: 0s; background: #4FC3F7; }
+  .meeting-anim .person:nth-child(2) .speech-dot { animation-delay: 0.2s; background: #81C784; }
+  .meeting-anim .person:nth-child(3) .speech-dot { animation-delay: 0.4s; background: #E5C97A; }
+  .meeting-anim .person:nth-child(4) .speech-dot { animation-delay: 0.6s; background: #FF8A65; }
+  .meeting-anim .person:nth-child(5) .speech-dot { animation-delay: 0.8s; background: #CE93D8; }
+  @keyframes avatarBob {
+    0%,100% { transform: translateY(0); box-shadow: 0 0 0 rgba(229,201,122,0); }
+    40% { transform: translateY(-8px); box-shadow: 0 4px 16px rgba(229,201,122,0.3); }
+    60% { transform: translateY(-4px); }
+  }
+  @keyframes speechDot {
+    0%,100% { opacity: 0; transform: scale(0.5); }
+    40% { opacity: 1; transform: scale(1.4); }
+    60% { opacity: 0.6; transform: scale(1); }
+  }
 
   #meeting-btns { display: flex; gap: 10px; }
 
@@ -382,8 +417,14 @@
     <div id="rounds-container"></div>
     <div id="conclusion-box"><div class="c-title">🏆 本日の会議の結論</div><div class="c-text" id="conclusion-text"></div></div>
     <div id="loading-box">
-      <div class="l-emoji pulse">⚙️</div>
-      <div class="l-text" id="loading-msg">処理中...</div>
+      <div class="meeting-anim">
+        <div class="person"><div class="speech-dot"></div><div class="avatar">📊</div></div>
+        <div class="person"><div class="speech-dot"></div><div class="avatar">💡</div></div>
+        <div class="person"><div class="speech-dot"></div><div class="avatar">🎙️</div></div>
+        <div class="person"><div class="speech-dot"></div><div class="avatar">🚀</div></div>
+        <div class="person"><div class="speech-dot"></div><div class="avatar">💰</div></div>
+      </div>
+      <div class="l-text" id="loading-msg">専門家たちが議論中...</div>
     </div>
     <div id="meeting-btns">
       <button id="btn-next-round" class="btn-gold" onclick="nextRound()" style="flex:1;padding:14px;font-size:14px" disabled>次のラウンドへ</button>
@@ -784,7 +825,7 @@ async function runRound(force = false) {
     state.rounds.push(parsed);
     renderRound(parsed);
 
-    if (parsed.concluded) {
+    if (parsed.concluded || forceConclusion) {
       state.concluded = true;
       state.conclusion = parsed.conclusion || parsed.moderator_close;
       showConclusion(state.conclusion);
