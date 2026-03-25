@@ -268,42 +268,14 @@
   #conclusion-box .c-text  { font-size: 14px; line-height: 2; color: #ddd; }
 
   #loading-box { text-align: center; padding: 40px; display: none; }
-  #loading-box .l-text  { font-size: 13px; color: rgba(229,201,122,0.6); margin-top: 16px; }
-
-  /* ── 会議中アニメーション ── */
-  .meeting-anim { display: flex; justify-content: center; align-items: flex-end; gap: 10px; height: 60px; margin-bottom: 8px; }
-  .meeting-anim .person {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-  }
-  .meeting-anim .avatar {
-    width: 36px; height: 36px; border-radius: 50%;
+  #loading-msg { font-size: 13px; color: rgba(229,201,122,0.7); margin-top: 14px; }
+  #anim-wrap { display: flex; justify-content: center; align-items: flex-end; gap: 12px; height: 70px; }
+  .anim-person { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .anim-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .anim-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; border: 2px solid transparent;
-    animation: avatarBob 1.4s ease-in-out infinite;
-  }
-  .meeting-anim .person:nth-child(1) .avatar { animation-delay: 0s; border-color: #4FC3F7; background: rgba(79,195,247,0.15); }
-  .meeting-anim .person:nth-child(2) .avatar { animation-delay: 0.2s; border-color: #81C784; background: rgba(129,199,132,0.15); }
-  .meeting-anim .person:nth-child(3) .avatar { animation-delay: 0.4s; border-color: #E5C97A; background: rgba(229,201,122,0.15); }
-  .meeting-anim .person:nth-child(4) .avatar { animation-delay: 0.6s; border-color: #FF8A65; background: rgba(255,138,101,0.15); }
-  .meeting-anim .person:nth-child(5) .avatar { animation-delay: 0.8s; border-color: #CE93D8; background: rgba(206,147,216,0.15); }
-  .meeting-anim .speech-dot {
-    width: 6px; height: 6px; border-radius: 50%; background: #E5C97A;
-    animation: speechDot 1.4s ease-in-out infinite; opacity: 0;
-  }
-  .meeting-anim .person:nth-child(1) .speech-dot { animation-delay: 0s; background: #4FC3F7; }
-  .meeting-anim .person:nth-child(2) .speech-dot { animation-delay: 0.2s; background: #81C784; }
-  .meeting-anim .person:nth-child(3) .speech-dot { animation-delay: 0.4s; background: #E5C97A; }
-  .meeting-anim .person:nth-child(4) .speech-dot { animation-delay: 0.6s; background: #FF8A65; }
-  .meeting-anim .person:nth-child(5) .speech-dot { animation-delay: 0.8s; background: #CE93D8; }
-  @keyframes avatarBob {
-    0%,100% { transform: translateY(0); box-shadow: 0 0 0 rgba(229,201,122,0); }
-    40% { transform: translateY(-8px); box-shadow: 0 4px 16px rgba(229,201,122,0.3); }
-    60% { transform: translateY(-4px); }
-  }
-  @keyframes speechDot {
-    0%,100% { opacity: 0; transform: scale(0.5); }
-    40% { opacity: 1; transform: scale(1.4); }
-    60% { opacity: 0.6; transform: scale(1); }
+    font-size: 20px; border: 2px solid;
   }
 
   #meeting-btns { display: flex; gap: 10px; }
@@ -417,14 +389,8 @@
     <div id="rounds-container"></div>
     <div id="conclusion-box"><div class="c-title">🏆 本日の会議の結論</div><div class="c-text" id="conclusion-text"></div></div>
     <div id="loading-box">
-      <div class="meeting-anim">
-        <div class="person"><div class="speech-dot"></div><div class="avatar">📊</div></div>
-        <div class="person"><div class="speech-dot"></div><div class="avatar">💡</div></div>
-        <div class="person"><div class="speech-dot"></div><div class="avatar">🎙️</div></div>
-        <div class="person"><div class="speech-dot"></div><div class="avatar">🚀</div></div>
-        <div class="person"><div class="speech-dot"></div><div class="avatar">💰</div></div>
-      </div>
-      <div class="l-text" id="loading-msg">専門家たちが議論中...</div>
+      <div id="anim-wrap"></div>
+      <div id="loading-msg">専門家たちが議論中...</div>
     </div>
     <div id="meeting-btns">
       <button id="btn-next-round" class="btn-gold" onclick="nextRound()" style="flex:1;padding:14px;font-size:14px" disabled>次のラウンドへ</button>
@@ -819,17 +785,26 @@ async function runRound(force = false) {
   const roundNum = state.rounds.length + 1;
   const forceConclusion = force || roundNum >= MAX_ROUNDS;
 
+  // ラウンドが進むほどトークンを増やす
+  const maxTok = roundNum >= MAX_ROUNDS ? 3000 : 2000;
+
   try {
-    const raw = await callAPI(buildMeetingSystem(), buildMeetingMsg(roundNum, forceConclusion), 2000);
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    const raw = await callAPI(buildMeetingSystem(), buildMeetingMsg(roundNum, forceConclusion), maxTok);
+
+    // JSON抽出を強化（```json ``` や前後のテキストを除去）
+    let jsonStr = raw;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+    jsonStr = jsonStr.replace(/```json|```/g, '').trim();
+
+    const parsed = JSON.parse(jsonStr);
     state.rounds.push(parsed);
     renderRound(parsed);
 
     if (parsed.concluded || forceConclusion) {
       state.concluded = true;
-      state.conclusion = parsed.conclusion || parsed.moderator_close;
+      state.conclusion = parsed.conclusion || parsed.moderator_close || 'まとめを確認してください。';
       showConclusion(state.conclusion);
-      // ボタン切り替え
       document.getElementById('btn-next-round').style.display = 'none';
       document.getElementById('btn-force-conclude').style.display = 'none';
       const meetBtns = document.getElementById('meeting-btns');
@@ -841,7 +816,12 @@ async function runRound(force = false) {
       updateNextRoundLabel();
     }
   } catch(err) {
-    alert('会議中にエラーが発生しました: ' + err.message);
+    console.error('runRound error:', err);
+    // エラー時はリトライボタンを表示
+    const meetBtns = document.getElementById('meeting-btns');
+    meetBtns.innerHTML = `
+      <button class="btn-gold" onclick="runRound(${forceConclusion})" style="flex:1;padding:14px;font-size:14px">🔄 もう一度試す</button>
+      <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">最初から</button>`;
   }
 
   setLoadingVisible(false);
@@ -863,10 +843,45 @@ function setMeetingBtnsEnabled(enabled) {
   if (b2) b2.disabled = !enabled;
 }
 
+let animTimer = null;
+
 function setLoadingVisible(show, msg = '') {
   const box = document.getElementById('loading-box');
   box.style.display = show ? 'block' : 'none';
   if (msg) document.getElementById('loading-msg').textContent = msg;
+
+  if (show) {
+    // アニメーション生成
+    const wrap = document.getElementById('anim-wrap');
+    const members = state.members.length > 0 ? state.members : [
+      {emoji:'📊',accent:'#4FC3F7'},{emoji:'💡',accent:'#81C784'},
+      {emoji:'🎙️',accent:'#E5C97A'},{emoji:'🚀',accent:'#CE93D8'},{emoji:'💰',accent:'#F48FB1'}
+    ];
+    wrap.innerHTML = members.slice(0,5).map((m,i) =>
+      `<div class="anim-person" id="ap${i}">
+        <div class="anim-dot" id="ad${i}" style="background:${m.accent};opacity:0;transition:all .2s"></div>
+        <div class="anim-avatar" style="border-color:${m.accent};background:${m.accent}22">${m.emoji}</div>
+      </div>`
+    ).join('');
+
+    let step = 0;
+    if (animTimer) clearInterval(animTimer);
+    animTimer = setInterval(() => {
+      members.slice(0,5).forEach((m, i) => {
+        const person = document.getElementById('ap' + i);
+        const dot    = document.getElementById('ad' + i);
+        if (!person || !dot) return;
+        const active = (step % 5) === i;
+        person.style.transform = active ? 'translateY(-10px)' : 'translateY(0)';
+        person.style.transition = 'transform 0.3s ease';
+        dot.style.opacity = active ? '1' : '0';
+        dot.style.transform = active ? 'scale(1.4)' : 'scale(0.5)';
+      });
+      step++;
+    }, 300);
+  } else {
+    if (animTimer) { clearInterval(animTimer); animTimer = null; }
+  }
 }
 
 function renderRound(round) {
@@ -956,11 +971,17 @@ async function generateMinutes() {
 ◆ 次回への課題`;
 
   try {
-    const raw = await callAPI(null, prompt, 2000);
+    const raw = await callAPI(null, prompt, 3000);
     document.getElementById('minutes-text').textContent = raw;
     showPhase('minutes');
   } catch(err) {
-    alert('議事録生成中にエラーが発生しました: ' + err.message);
+    console.error('generateMinutes error:', err);
+    alert('議事録の生成に失敗しました。もう一度「議事録を生成する」を押してください。');
+    // ボタンを復活させる
+    const meetBtns = document.getElementById('meeting-btns');
+    meetBtns.innerHTML = `
+      <button class="btn-gold" onclick="generateMinutes()" style="flex:1;padding:14px;font-size:14px">📄 議事録を生成する（再試行）</button>
+      <button class="btn-ghost" onclick="resetAll()" style="padding:14px 16px;font-size:12px">新しい会議</button>`;
   }
 
   setLoadingVisible(false);
