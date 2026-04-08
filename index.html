@@ -38,8 +38,18 @@
   .pulse { animation: pulse 1.8s infinite; }
 
   /* ── ヘッダー ── */
-  #header {
+  #sticky-top {
     position: sticky; top: 0; z-index: 100;
+  }
+  #trial-banner {
+    display: none; width: 100%; padding: 10px; text-align: center; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans JP';
+  }
+  #trial-banner:hover { filter: brightness(1.05); }
+  .banner-gold { background: linear-gradient(135deg, #E5C97A, #C9A84C); color: #0F172A; }
+  .banner-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+
+  #header {
     background: rgba(15,23,42,0.92);
     backdrop-filter: blur(14px);
     border-bottom: 1px solid rgba(229,201,122,0.12);
@@ -323,21 +333,24 @@
 </div>
 
 <!-- ── ヘッダー ── -->
-<div id="header">
-  <div id="header-title-area" onclick="resetAll()" style="display:flex;align-items:center;gap:12px">
-    <span style="font-size:22px">🏛️</span>
-    <div>
-      <div class="title">ひとり社長の経営会議室</div>
-      <div class="sub">AI Board Meeting · 専門家5名 + 司会</div>
+<div id="sticky-top">
+  <div id="trial-banner" onclick="handleBannerClick()"></div>
+  <div id="header">
+    <div id="header-title-area" onclick="resetAll()" style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:22px">🏛️</span>
+      <div>
+        <div class="title">ひとり社長の経営会議室</div>
+        <div class="sub">AI Board Meeting · 専門家5名 + 司会</div>
+      </div>
     </div>
+    <div id="step-dots">
+      <div class="dot" id="dot0"></div>
+      <div class="dot" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+      <div class="dot" id="dot3"></div>
+    </div>
+    <button id="btn-reset" onclick="resetAll()">最初から</button>
   </div>
-  <div id="step-dots">
-    <div class="dot" id="dot0"></div>
-    <div class="dot" id="dot1"></div>
-    <div class="dot" id="dot2"></div>
-    <div class="dot" id="dot3"></div>
-  </div>
-  <button id="btn-reset" onclick="resetAll()">最初から</button>
 </div>
 
 <div id="app">
@@ -420,10 +433,54 @@
 const WORKER_URL = 'https://kaigi-mikkke.yymmatsu.workers.dev';
 
 // ============================================================
-//  パスワード認証
+//  パスワード認証 & 無料体験
 // ============================================================
 const CORRECT_PASSWORD = 'kaigi2026';
-const PAY_START = new Date('2026-04-01');
+
+function isAuth() {
+  return sessionStorage.getItem('kaigi-auth') === '1';
+}
+
+function getUsageCount() {
+  return parseInt(localStorage.getItem('kaigi-usage-count') || '0', 10);
+}
+
+function incrementUsageCount() {
+  let count = getUsageCount();
+  count++;
+  localStorage.setItem('kaigi-usage-count', count);
+  updateBanner();
+}
+
+function updateBanner() {
+  const banner = document.getElementById('trial-banner');
+  if (isAuth()) {
+    banner.style.display = 'none';
+    return;
+  }
+  
+  const count = getUsageCount();
+  banner.style.display = 'block';
+  banner.className = ''; // クラスリセット
+  
+  if (count === 0) {
+    banner.classList.add('banner-gold');
+    banner.textContent = '🎁 今なら3回まで無料でお試しいただけます（登録不要）';
+  } else if (count === 1) {
+    banner.classList.add('banner-gold');
+    banner.textContent = '🎁 無料体験 残り2回（全3回）';
+  } else if (count === 2) {
+    banner.classList.add('banner-gold');
+    banner.textContent = '🎁 無料体験 残り1回（全3回）';
+  } else {
+    banner.classList.add('banner-red');
+    banner.innerHTML = '⚠️ 無料体験が終了しました ご購入はこちら→';
+  }
+}
+
+function handleBannerClick() {
+  showMeetingPwScreen();
+}
 
 function showMeetingPwScreen() {
   document.getElementById('meeting-pw-screen').style.display = 'flex';
@@ -442,6 +499,7 @@ function checkMeetingPassword() {
   if (input === CORRECT_PASSWORD) {
     sessionStorage.setItem('kaigi-auth', '1');
     hideMeetingPwScreen();
+    updateBanner();
     // ラウンド0なら会議開始、それ以外は次のラウンドへ
     if (state.rounds.length === 0) {
       startMeeting();
@@ -463,6 +521,7 @@ function checkPassword() {
   if (input === CORRECT_PASSWORD) {
     document.getElementById('pw-screen').style.display = 'none';
     sessionStorage.setItem('kaigi-auth', '1');
+    updateBanner();
   } else {
     errEl.textContent = 'パスワードが違います。もう一度お試しください。';
     document.getElementById('pw-input').value = '';
@@ -510,16 +569,17 @@ let state = {
 //  初期化
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
-  // パスワード認証チェック
-  if (!needsPassword() || sessionStorage.getItem('kaigi-auth') === '1') {
-    document.getElementById('pw-screen').style.display = 'none';
-  }
+  // パスワード画面は初期非表示（無料体験で使えるため）
+  document.getElementById('pw-screen').style.display = 'none';
+
   // アプリ初期化
   renderPoolPreview();
   document.getElementById('topic-input').addEventListener('input', e => {
     document.getElementById('btn-suggest').disabled = !e.target.value.trim();
     if (!e.target.value.trim()) document.getElementById('theme-preset').value = "";
   });
+  
+  updateBanner();
   updateDots();
 });
 
@@ -765,6 +825,17 @@ function buildMeetingMsg(roundNum, force) {
 }
 
 async function startMeeting() {
+  // 無料体験上限チェック
+  if (!isAuth() && getUsageCount() >= 3) {
+    showMeetingPwScreen();
+    return;
+  }
+  
+  // 無料体験回数を消費
+  if (!isAuth()) {
+    incrementUsageCount();
+  }
+
   state.rounds = [];
   state.concluded = false;
   state.conclusion = '';
@@ -841,18 +912,9 @@ async function runRound(force = false) {
 }
 
 function nextRound() {
-  // ラウンド2以降は認証チェック
-  if (sessionStorage.getItem('kaigi-auth') !== '1') {
-    showMeetingPwScreen();
-    return;
-  }
   runRound(false);
 }
 function forceConclusion() {
-  if (sessionStorage.getItem('kaigi-auth') !== '1') {
-    showMeetingPwScreen();
-    return;
-  }
   runRound(true);
 }
 
@@ -1014,11 +1076,18 @@ async function generateMinutes() {
 
 function copyMinutes() {
   const text = document.getElementById('minutes-text').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('btn-copy');
-    btn.textContent = '✅ コピーしました！';
-    setTimeout(() => { btn.innerHTML = '📋 議事録をコピー'; }, 2500);
-  });
+  
+  // システム要件（iframe環境）にあわせたクリップボード対応
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  const btn = document.getElementById('btn-copy');
+  btn.textContent = '✅ コピーしました！';
+  setTimeout(() => { btn.innerHTML = '📋 議事録をコピー'; }, 2500);
 }
 
 // ============================================================
